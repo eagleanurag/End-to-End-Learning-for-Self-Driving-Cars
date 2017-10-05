@@ -12,13 +12,14 @@ from PIL import Image
 from PIL import ImageOps
 from flask import Flask, render_template
 from io import BytesIO
+import cv2
 
 from keras.models import model_from_json
 from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array
 
 # Fix error with Keras and TensorFlow
 import tensorflow as tf
-tf.python.control_flow_ops = tf
+# tf.python.control_flow_ops = tf
 
 
 sio = socketio.Server()
@@ -37,14 +38,18 @@ def telemetry(sid, data):
     # The current image from the center camera of the car
     imgString = data["image"]
     image = Image.open(BytesIO(base64.b64decode(imgString)))
-    image_array = np.asarray(image)
-    transformed_image_array = image_array[None, :, :, :]
+    open_cv_image = np.array(image)
+    # Convert RGB to BGR
+    open_cv_image = open_cv_image[:, :, ::-1].copy()
+    img = cv2.resize(open_cv_image, (320, 160))
+
+    #transformed_image_array = image_array[None, :, :, :]
 
     #resize the image
-    transformed_image_array = ( cv2.resize((cv2.cvtColor(transformed_image_array[0], cv2.COLOR_RGB2HSV))[:,:,1],(32,16))).reshape(1,16,32,1)
-    
+    #transformed_image_array = ( cv2.resize((cv2.cvtColor(transformed_image_array[0], cv2.COLOR_RGB2HSV))[:,:,1],(32,16))).reshape(1,16,32,1)
+
     # This model currently assumes that the features of the model are just the images. Feel free to change this.
-    steering_angle = float(model.predict(transformed_image_array, batch_size=1))
+    steering_angle =  model.predict(img[None, :, :, :].transpose(0, 3, 1, 2))[0][0]
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
     throttle = 0.2
     #adaptive speed
@@ -90,14 +95,14 @@ if __name__ == '__main__':
         # NOTE: if you saved the file by calling json.dump(model.to_json(), ...)
         # then you will have to call:
         #
-        #   model = model_from_json(json.loads(jfile.read()))\
+        model = model_from_json(json.loads(jfile.read()))
         #
         # instead.
-        model = model_from_json(jfile.read())
+        #model = model_from_json(jfile.read())
 
 
     model.compile("adam", "mse")
-    weights_file = args.model.replace('json', 'h5')
+    weights_file = args.model.replace('json', 'keras')
     model.load_weights(weights_file)
 
     # wrap Flask application with engineio's middleware
