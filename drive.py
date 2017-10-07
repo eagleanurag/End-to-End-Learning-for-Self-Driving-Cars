@@ -35,27 +35,47 @@ def telemetry(sid, data):
     throttle = data["throttle"]
     # The current speed of the car
     speed = data["speed"]
+
+    """For actual road"""
     # The current image from the center camera of the car
+    # imgString = data["image"]
+    # image = Image.open(BytesIO(base64.b64decode(imgString)))
+    # open_cv_image = np.array(image)
+    # # Convert RGB to BGR
+    # open_cv_image = open_cv_image[:, :, ::-1].copy()
+    # img = cv2.resize(open_cv_image, (320, 160))
+    #
+    # #transformed_image_array = image_array[None, :, :, :]
+    #
+    # #resize the image
+    # #transformed_image_array = ( cv2.resize((cv2.cvtColor(transformed_image_array[0], cv2.COLOR_RGB2HSV))[:,:,1],(32,16))).reshape(1,16,32,1)
+    #
+    # # This model currently assumes that the features of the model are just the images. Feel free to change this.
+    # steering_angle =  model.predict(img[None, :, :, :].transpose(0, 3, 1, 2))[0][0]
+    # # The driving model currently just outputs a constant throttle. Feel free to edit this.
+    # throttle = 0.2
+
+    """For sim"""
     imgString = data["image"]
     image = Image.open(BytesIO(base64.b64decode(imgString)))
-    open_cv_image = np.array(image)
-    # Convert RGB to BGR
-    open_cv_image = open_cv_image[:, :, ::-1].copy()
-    img = cv2.resize(open_cv_image, (320, 160))
+    image_array = np.asarray(image)
+    transformed_image_array = image_array[None, :, :, :]
 
-    #transformed_image_array = image_array[None, :, :, :]
-
-    #resize the image
-    #transformed_image_array = ( cv2.resize((cv2.cvtColor(transformed_image_array[0], cv2.COLOR_RGB2HSV))[:,:,1],(32,16))).reshape(1,16,32,1)
+    # resize the image
+    transformed_image_array = (
+    cv2.resize((cv2.cvtColor(transformed_image_array[0], cv2.COLOR_RGB2HSV))[:, :, 1], (32, 16))).reshape(1, 16, 32, 1)
 
     # This model currently assumes that the features of the model are just the images. Feel free to change this.
-    steering_angle =  model.predict(img[None, :, :, :].transpose(0, 3, 1, 2))[0][0]
+    steering_angle = float(model.predict(transformed_image_array, batch_size=1))
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
     throttle = 0.2
+
     #adaptive speed
-    '''
+
     if (float(speed) < 10):
-        throttle = 0.4 
+        throttle = 0.4
+    elif (float(speed)<2):
+        throttle = 0.7
     else:
         # When speed is below 20 then increase throttle by speed_factor
         if ((float(speed)) < 25):
@@ -68,7 +88,7 @@ def telemetry(sid, data):
             throttle = 0.2 * speed_factor
         else:
             throttle = 0.15 * speed_factor
-    '''
+
     print('Steering angle =', '%5.2f'%(float(steering_angle)), 'Throttle =', '%.2f'%(float(throttle)), 'Speed  =', '%.2f'%(float(speed)))
     send_control(steering_angle, throttle)
 
@@ -87,22 +107,25 @@ def send_control(steering_angle, throttle):
 
 
 if __name__ == '__main__':
+
+
     parser = argparse.ArgumentParser(description='Remote Driving')
     parser.add_argument('model', type=str,
     help='Path to model definition json. Model weights should be on the same path.')
     args = parser.parse_args()
+
     with open(args.model, 'r') as jfile:
         # NOTE: if you saved the file by calling json.dump(model.to_json(), ...)
         # then you will have to call:
         #
-        model = model_from_json(json.loads(jfile.read()))
+        #model = model_from_json(json.loads(jfile.read()))
         #
         # instead.
-        #model = model_from_json(jfile.read())
+        model = model_from_json(jfile.read())
 
 
     model.compile("adam", "mse")
-    weights_file = args.model.replace('json', 'keras')
+    weights_file = args.model.replace('json', 'h5')
     model.load_weights(weights_file)
 
     # wrap Flask application with engineio's middleware

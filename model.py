@@ -11,8 +11,8 @@ from keras.optimizers import Adam
 import matplotlib.pyplot as plt
 
 #define the file direcory
-features_directory = './training_data/'
-labels_file= './training_data/driving_log.csv'
+features_directory = './dataset/first/'
+labels_file= './dataset/first/driving_log.csv'
 
 #image size after resize
 rows = 16
@@ -101,13 +101,20 @@ def steering_model():
 
 #optimize
 model = steering_model()
-adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+lr = 0.001
+if(True):
+    model.load_weights('model3.h5')
+    lr = 0.00001
+    for layer in model.layers[:5]:
+        layer.trainable = False
+
+adam = Adam(lr=lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 model.compile(loss='mean_squared_error',optimizer='adam')
-history = model.fit(train_features, train_labels,batch_size=128, nb_epoch=10,verbose=1, validation_data=(test_features, test_labels))
+history = model.fit(train_features, train_labels,batch_size=120, nb_epoch=20,verbose=1, validation_data=(test_features, test_labels))
 
 #save the model architecture and parameters
-model_json = './model.json'
-model_h5 = './model.h5'
+model_json = './model4.json'
+model_h5 = './model4.h5'
 model_save(model_json,model_h5)
 
 
