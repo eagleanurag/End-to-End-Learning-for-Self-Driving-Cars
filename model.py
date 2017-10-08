@@ -1,14 +1,13 @@
 #import modules
-import numpy as np
-import keras
 import csv
+
 import cv2
+import matplotlib.pyplot as plt
+from keras.layers import *
+from keras.models import *
+from keras.optimizers import Adam
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
-from keras.models import *
-from keras.layers import *
-from keras.optimizers import Adam
-import matplotlib.pyplot as plt
 
 #define the file direcory
 features_directory = './dataset/first/'
@@ -55,27 +54,6 @@ def data_loading(delta):
                 labels.append(float(logs[i][3]) - delta)
     return features, labels
 
-#load the data and transform to numpy array
-#very important parameter, defining the shift variable for left and righ steering angle
-delta = 0.2
-features, labels = data_loading(delta)
-
-features = np.array(features).astype('float32')
-labels = np.array(labels).astype('float32')
-
-print(features.shape)
-
-#augment the data by horizontal flipping the image
-features = np.append(features,features[:,:,::-1],axis=0)
-labels = np.append(labels,-labels,axis=0)
-
-# shuffle the data and split to train and validation 
-features, labels = shuffle(features, labels)
-train_features, test_features, train_labels, test_labels = train_test_split(features, labels, random_state=0, test_size=0.1)
-
-#reshape the data  to feed into the network
-train_features = train_features.reshape(train_features.shape[0], rows, cols, 1)
-test_features = test_features.reshape(test_features.shape[0], rows, cols, 1)
 
 #define the model
 def steering_model():
@@ -99,22 +77,47 @@ def steering_model():
     model.summary()
     return model
 
-#optimize
-model = steering_model()
-lr = 0.001
-if(True):
-    model.load_weights('model3.h5')
-    lr = 0.00001
-    for layer in model.layers[:5]:
-        layer.trainable = False
 
-adam = Adam(lr=lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
-model.compile(loss='mean_squared_error',optimizer='adam')
-history = model.fit(train_features, train_labels,batch_size=120, nb_epoch=20,verbose=1, validation_data=(test_features, test_labels))
+if __name__ == '__main__':
 
-#save the model architecture and parameters
-model_json = './model4.json'
-model_h5 = './model4.h5'
-model_save(model_json,model_h5)
+    # load the data and transform to numpy array
+    # very important parameter, defining the shift variable for left and righ steering angle
+    delta = 0.2
+    features, labels = data_loading(delta)
 
+    features = np.array(features).astype('float32')
+    labels = np.array(labels).astype('float32')
 
+    print(features.shape)
+
+    # augment the data by horizontal flipping the image
+    features = np.append(features, features[:, :, ::-1], axis=0)
+    labels = np.append(labels, -labels, axis=0)
+
+    # shuffle the data and split to train and validation
+    features, labels = shuffle(features, labels)
+    train_features, test_features, train_labels, test_labels = train_test_split(features, labels, random_state=0,
+                                                                                test_size=0.1)
+
+    # reshape the data  to feed into the network
+    train_features = train_features.reshape(train_features.shape[0], rows, cols, 1)
+    test_features = test_features.reshape(test_features.shape[0], rows, cols, 1)
+
+    # optimize
+    model = steering_model()
+    lr = 0.001
+    if (True):
+        model.load_weights('model4.h5')
+        lr = 0.000001
+        for layer in model.layers[:5]:
+            layer.trainable = False
+
+    adam = Adam(lr=lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+    model.compile(loss='mean_squared_error', optimizer='adam')
+    history = model.fit(train_features, train_labels, batch_size=220, nb_epoch=30, verbose=2,
+                        validation_data=(test_features, test_labels))
+
+    # save the model architecture and parameters
+    model_json = './model4.json'
+    model_h5 = './model4.h5'
+    model_save(model_json, model_h5)
